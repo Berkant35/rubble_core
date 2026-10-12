@@ -1,6 +1,6 @@
 name: rubble_core
 description: BeneathSOS core types in pure Dart — typed units, rubble geometry in local metres, ids, hybrid clock, session events and projection.
-version: 0.1.0
+version: 0.2.0
 repository: https://github.com/Berkant35/rubble_core
 issue_tracker: https://github.com/Berkant35/rubble_core/issues
 

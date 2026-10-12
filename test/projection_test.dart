@@ -322,4 +322,27 @@ void main() {
     expect(empty.scale, 1);
     expect(empty.closed, isFalse);
   });
+
+  test('a surface scan is remembered even when it set nothing aside', () {
+    final scanned = SessionProjection.replay([
+      e(1, const SiteCreated(title: 'Site', engineProfile: 'dense@1')),
+      e(
+        2,
+        const AmbientScanCompleted(
+          blacklisted: [],
+          duration: Duration(seconds: 30),
+        ),
+      ),
+    ]);
+    expect(scanned.blacklist, isEmpty);
+    expect(scanned.lastSurfaceScan!.physicalMs, 1002);
+    expect(SessionState.empty.lastSurfaceScan, isNull);
+  });
+
+  test('a manual exclusion is not a surface scan', () {
+    final excluded = SessionProjection.replay([
+      e(1, const BlacklistEdited(added: ['team'], removed: [])),
+    ]);
+    expect(excluded.lastSurfaceScan, isNull);
+  });
 }

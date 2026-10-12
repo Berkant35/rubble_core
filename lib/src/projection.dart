@@ -2,6 +2,7 @@ import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
 import 'package:rubble_core/src/events.dart';
 import 'package:rubble_core/src/geometry.dart';
+import 'package:rubble_core/src/hybrid_clock.dart';
 import 'package:rubble_core/src/ids.dart';
 
 const _deep = DeepCollectionEquality();
@@ -115,6 +116,7 @@ final class SessionState {
     required this.groundTruths,
     required this.closed,
     required this.appliedIds,
+    this.lastSurfaceScan,
   });
 
   /// A session before any event.
@@ -131,6 +133,10 @@ final class SessionState {
     closed: false,
     appliedIds: {},
   );
+
+  /// When the last surface scan finished (`AmbientScanCompleted`), even if it set nothing aside;
+  /// null before the first one. A manual exclusion is not a scan.
+  final HybridTimestamp? lastSurfaceScan;
 
   /// Site name.
   final String? title;
@@ -180,6 +186,7 @@ final class SessionState {
     Map<PointId, PointState>? points,
     Map<TargetId, SitePoint>? groundTruths,
     bool? closed,
+    HybridTimestamp? lastSurfaceScan,
     required Set<EventId> appliedIds,
   }) => SessionState(
     title: title ?? this.title,
@@ -192,6 +199,7 @@ final class SessionState {
     points: Map.unmodifiable(points ?? this.points),
     groundTruths: Map.unmodifiable(groundTruths ?? this.groundTruths),
     closed: closed ?? this.closed,
+    lastSurfaceScan: lastSurfaceScan ?? this.lastSurfaceScan,
     appliedIds: Set.unmodifiable(appliedIds),
   );
 
@@ -203,6 +211,7 @@ final class SessionState {
       other.outline == outline &&
       other.scale == scale &&
       other.closed == closed &&
+      other.lastSurfaceScan == lastSurfaceScan &&
       _deep.equals(other.structures, structures) &&
       _deep.equals(other.blacklist, blacklist) &&
       _deep.equals(other.targets, targets) &&
@@ -217,6 +226,7 @@ final class SessionState {
     outline,
     scale,
     closed,
+    lastSurfaceScan,
     _deep.hash(points),
     _deep.hash(targets),
     _deep.hash(appliedIds),
@@ -265,6 +275,7 @@ abstract final class SessionProjection {
       ),
       AmbientScanCompleted(:final blacklisted) => state._copy(
         blacklist: {...state.blacklist, ...blacklisted},
+        lastSurfaceScan: envelope.hlc,
         appliedIds: applied,
       ),
       BlacklistEdited(:final added, :final removed) => state._copy(

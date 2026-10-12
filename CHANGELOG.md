@@ -1,3 +1,7 @@
+## 0.2.0
+- `SessionState.lastSurfaceScan`: when the last surface scan finished, even one that set nothing
+  aside (a manual exclusion is not a scan).
+
 ## 0.1.0
 - Session projection (`SessionProjection.replay`): idempotent and order-independent; logs from
   several devices apply in hybrid-clock order, ties by event id; discarded or moved points set
