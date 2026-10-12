@@ -180,10 +180,10 @@ enum ScaleSource {
 
 /// Drawn lengths are multiplied by [factor].
 final class ScaleSet extends SessionEvent {
-  /// Creates the event; [factor] must be positive.
+  /// Creates the event; [factor] must be positive and finite.
   ScaleSet({required this.factor, required this.source}) {
-    if (!(factor > 0)) {
-      throw ArgumentError.value(factor, 'factor', 'must be > 0');
+    if (!(factor > 0 && factor.isFinite)) {
+      throw ArgumentError.value(factor, 'factor', 'must be finite and > 0');
     }
   }
 

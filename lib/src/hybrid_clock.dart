@@ -73,13 +73,21 @@ final class HybridTimestamp implements Comparable<HybridTimestamp> {
 /// one, even when the wall clock jumps backwards.
 final class HybridClock {
   /// Creates a clock for [device]; [nowMs] is the wall clock (injected for tests).
-  HybridClock({required this.device, required this._nowMs});
+  ///
+  /// After a restart pass the greatest timestamp already stored as [last]: the wall clock may have
+  /// gone backwards meanwhile, and new events must still sort after the old ones.
+  HybridClock({
+    required this.device,
+    required this._nowMs,
+    HybridTimestamp? last,
+  }) : _physical = last?.physicalMs ?? -1,
+       _counter = last?.counter ?? 0;
 
   /// This device.
   final DeviceId device;
   final int Function() _nowMs;
-  int _physical = -1;
-  int _counter = 0;
+  int _physical;
+  int _counter;
 
   /// A timestamp for a local event.
   HybridTimestamp now() {

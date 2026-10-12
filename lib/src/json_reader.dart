@@ -28,15 +28,17 @@ final class JsonReader {
     _ => _fail(key),
   };
 
-  /// A number field (int or double).
+  /// A finite number field (int or double).
   double number(String key) => switch (json[key]) {
-    final num v => v.toDouble(),
+    final num v when v.isFinite => v.toDouble(),
     _ => _fail(key),
   };
 
   /// A list of strings.
   List<String> strings(String key) => switch (json[key]) {
-    final List<Object?> v when v.every((e) => e is String) => v.cast<String>(),
+    final List<Object?> v when v.every((e) => e is String) => List.unmodifiable(
+      v.cast<String>(),
+    ),
     _ => _fail(key),
   };
 

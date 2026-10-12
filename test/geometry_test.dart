@@ -42,6 +42,28 @@ void main() {
       );
     });
 
+    test('an outline without area is degenerate', () {
+      expect(
+        RubblePolygon.validate([p(0, 0), p(2, 0), p(1, 0)]),
+        isA<DegenerateOutline>(),
+      );
+      expect(
+        RubblePolygon.validate([p(0, 0), p(1, 0), p(0.5, 0.001)]),
+        isA<DegenerateOutline>(),
+      );
+    });
+
+    test('a corner that is not a finite number', () {
+      expect(
+        RubblePolygon.validate([p(0, 0), p(double.nan, 0), p(1, 1)]),
+        isA<NonFiniteCorner>().having((e) => e.index, 'index', 1),
+      );
+      expect(
+        RubblePolygon.validate([p(0, 0), p(5, 0), p(5, double.infinity)]),
+        isA<NonFiniteCorner>().having((e) => e.index, 'index', 2),
+      );
+    });
+
     test('a valid outline has no problem', () {
       expect(
         RubblePolygon.validate([p(0, 0), p(10, 0), p(10, 5), p(0, 5)]),

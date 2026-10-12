@@ -63,4 +63,10 @@ void main() {
       expect(HybridTimestamp.parse(s.serialize()), s);
     }
   });
+
+  test('a restarted clock continues after the last stored timestamp', () {
+    const last = HybridTimestamp(physicalMs: 5000, counter: 3, device: a);
+    final clock = HybridClock(device: a, nowMs: () => 500, last: last);
+    expect(clock.now().compareTo(last), greaterThan(0));
+  });
 }

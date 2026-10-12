@@ -100,6 +100,27 @@ final class CornersTooClose extends PolygonProblem {
   String toString() => 'Corners $index and the next are closer than 0.1 m.';
 }
 
+/// Corner [index] is not a finite number.
+final class NonFiniteCorner extends PolygonProblem {
+  /// Creates the problem.
+  const NonFiniteCorner(this.index);
+
+  /// Index of the corner.
+  final int index;
+
+  @override
+  String toString() => 'Corner $index is not a finite number.';
+}
+
+/// The outline encloses less than [RubblePolygon.minArea] (for example, all corners on one line).
+final class DegenerateOutline extends PolygonProblem {
+  /// Creates the problem.
+  const DegenerateOutline();
+
+  @override
+  String toString() => 'The outline encloses (almost) no area.';
+}
+
 /// Two sides cross each other.
 final class SelfIntersecting extends PolygonProblem {
   /// Creates the problem.
@@ -115,8 +136,8 @@ final class SelfIntersecting extends PolygonProblem {
   String toString() => 'Sides $first and $second cross each other.';
 }
 
-/// The rubble outline the rescuer drew, in local metres. Always valid: at least three corners, no
-/// two consecutive corners closer than 0.1 m, no crossing sides.
+/// The rubble outline the rescuer drew, in local metres. Always valid: at least three finite
+/// corners, no two consecutive corners closer than 0.1 m, no crossing sides, at least 0.01 m² area.
 @immutable
 final class RubblePolygon {
   /// Creates an outline; throws [ArgumentError] with the [PolygonProblem] if it is invalid.
@@ -131,12 +152,18 @@ final class RubblePolygon {
   /// Smallest distance between consecutive corners.
   static const Meters minCornerSpacing = Meters(0.1);
 
+  /// Smallest enclosed area.
+  static const SquareMeters minArea = SquareMeters(0.01);
+
   /// Corners in drawing order.
   final List<SitePoint> corners;
 
   /// The first problem with [corners], or null when they form a valid outline.
   static PolygonProblem? validate(List<SitePoint> corners) {
     if (corners.length < 3) return TooFewCorners(corners.length);
+    for (final (i, c) in corners.indexed) {
+      if (!c.x.value.isFinite || !c.y.value.isFinite) return NonFiniteCorner(i);
+    }
     for (var i = 0; i < corners.length; i++) {
       if (corners[i].distanceTo(corners[(i + 1) % corners.length]) <
           minCornerSpacing) {
@@ -158,6 +185,10 @@ final class RubblePolygon {
         }
       }
     }
+    final doubleArea = [
+      for (var i = 0; i < n; i++) _cross2(corners[i], corners[(i + 1) % n]),
+    ].sum;
+    if (doubleArea.abs() / 2 < minArea.value) return const DegenerateOutline();
     return null;
   }
 

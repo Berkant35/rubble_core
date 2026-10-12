@@ -116,6 +116,24 @@ void main() {
       expect(() => SessionEvent.fromJson(j), throwsFormatException);
     });
 
+    test('numbers that are not finite', () {
+      final scale = json(_events[2]);
+      (scale['payload']! as Map<String, Object?>)['factor'] = double.infinity;
+      expect(() => SessionEvent.fromJson(scale), throwsFormatException);
+      final point = json(_events[8]);
+      ((point['payload']! as Map<String, Object?>)['at']!
+              as Map<String, Object?>)['y'] =
+          double.nan;
+      expect(() => SessionEvent.fromJson(point), throwsFormatException);
+    });
+
+    test('decoded lists cannot be changed', () {
+      final edited = SessionEvent.fromJson(
+        json(const BlacklistEdited(added: ['a'], removed: [])),
+      ) as BlacklistEdited;
+      expect(() => edited.added.add('b'), throwsUnsupportedError);
+    });
+
     test('unknown enum name', () {
       final j = json(_events[2]);
       (j['payload']! as Map<String, Object?>)['source'] = 'laser';
@@ -124,9 +142,13 @@ void main() {
   });
 
   group('validation', () {
-    test('scale factor must be positive', () {
+    test('scale factor must be positive and finite', () {
       expect(
         () => ScaleSet(factor: 0, source: ScaleSource.tape),
+        throwsArgumentError,
+      );
+      expect(
+        () => ScaleSet(factor: double.infinity, source: ScaleSource.tape),
         throwsArgumentError,
       );
     });

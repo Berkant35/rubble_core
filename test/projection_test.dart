@@ -9,6 +9,32 @@ const _t1 = TargetId('t1');
 const _p1 = PointId('p1');
 const _p2 = PointId('p2');
 
+EventEnvelope stamped(
+  String id,
+  int ms,
+  SessionEvent event, {
+  int seq = 1,
+  DeviceId device = _device,
+}) => EventEnvelope(
+  id: EventId(id),
+  session: _session,
+  seq: seq,
+  hlc: HybridTimestamp(physicalMs: ms, counter: 0, device: device),
+  event: event,
+);
+
+final _measuredP1 = [
+  e(1, MeasurementPointPlaced(point: _p1, at: p(1, 1))),
+  e(
+    2,
+    MeasurementCompleted(
+      point: _p1,
+      duration: const Duration(seconds: 15),
+      readings: [SignalHeard(_t1, median: const Dbm(-50), samples: 30)],
+    ),
+  ),
+];
+
 EventEnvelope e(int seq, SessionEvent event) => EventEnvelope(
   id: EventId('e$seq'),
   session: _session,
@@ -130,18 +156,22 @@ void main() {
     expect(doubled.points[_p1]!.readings, hasLength(1));
   });
 
-  test('a discarded point keeps its readings but is not a measured point', () {
-    final discarded = SessionProjection.replay([
-      ..._log,
-      e(
-        15,
-        const MeasurementDiscarded(point: _p1, reason: DiscardReason.moved),
-      ),
-    ]);
-    expect(discarded.points[_p1]!.status, PointStatus.discarded);
-    expect(discarded.points[_p1]!.readings, hasLength(1));
-    expect(discarded.measuredPoints.map((pt) => pt.id), [_p2]);
-  });
+  test(
+    'a discarded point keeps its readings aside and is not a measured point',
+    () {
+      final discarded = SessionProjection.replay([
+        ..._log,
+        e(
+          15,
+          const MeasurementDiscarded(point: _p1, reason: DiscardReason.moved),
+        ),
+      ]);
+      expect(discarded.points[_p1]!.status, PointStatus.discarded);
+      expect(discarded.points[_p1]!.readings, isEmpty);
+      expect(discarded.points[_p1]!.discardedReadings, hasLength(1));
+      expect(discarded.measuredPoints.map((pt) => pt.id), [_p2]);
+    },
+  );
 
   test(
     'a measurement before its point is placed is kept, without a position',
@@ -162,6 +192,129 @@ void main() {
       expect(point.readings.single, isA<NoSignal>());
     },
   );
+
+  test('equal clock and sequence are ordered by event id', () {
+    final x1 = stamped(
+      'x1',
+      1000,
+      const SiteCreated(title: 'A', engineProfile: 'dense@1'),
+    );
+    final x2 = stamped(
+      'x2',
+      1000,
+      const SiteCreated(title: 'B', engineProfile: 'dense@1'),
+    );
+    expect(SessionProjection.replay([x1, x2]).title, 'B');
+    expect(SessionProjection.replay([x2, x1]).title, 'B');
+  });
+
+  test(
+    'a re-measured discarded point does not bring back the discarded readings',
+    () {
+      final state = SessionProjection.replay([
+        ..._measuredP1,
+        e(
+          3,
+          const MeasurementDiscarded(point: _p1, reason: DiscardReason.moved),
+        ),
+        e(
+          4,
+          MeasurementCompleted(
+            point: _p1,
+            duration: const Duration(seconds: 15),
+            readings: [SignalHeard(_t1, median: const Dbm(-90), samples: 30)],
+          ),
+        ),
+      ]);
+      final point = state.measuredPoints.single;
+      expect(
+        point.readings.single,
+        SignalHeard(_t1, median: const Dbm(-90), samples: 30),
+      );
+      expect(point.discardedReadings, hasLength(1));
+    },
+  );
+
+  test('moving a measured point sets its readings aside', () {
+    final moved = SessionProjection.replay([
+      ..._measuredP1,
+      e(3, MeasurementPointPlaced(point: _p1, at: p(9, 9))),
+    ]);
+    final point = moved.points[_p1]!;
+    expect(point.at, p(9, 9));
+    expect(point.status, PointStatus.placed);
+    expect(point.readings, isEmpty);
+    expect(point.discardedReadings, hasLength(1));
+    expect(moved.measuredPoints, isEmpty);
+  });
+
+  test(
+    'placing a measured point again at the same position changes nothing',
+    () {
+      final before = SessionProjection.replay(_measuredP1).points[_p1];
+      final again = SessionProjection.replay([
+        ..._measuredP1,
+        e(3, MeasurementPointPlaced(point: _p1, at: p(1, 1))),
+      ]).points[_p1];
+      expect(again, before);
+    },
+  );
+
+  test('state lists cannot be changed by callers', () {
+    final point = state.points[_p1]!;
+    expect(point.readings.clear, throwsUnsupportedError);
+    expect(
+      () => point.discardedReadings.add(const NoSignal(_t1)),
+      throwsUnsupportedError,
+    );
+    expect(
+      () => state.targets[_t1]!.previousKeys.add('x'),
+      throwsUnsupportedError,
+    );
+  });
+
+  group('target identities are never lost', () {
+    final selected = e(
+      1,
+      const TargetSelected(target: _t1, peripheralKey: 'k1', label: 'Apple'),
+    );
+
+    test('two relinks from the same key keep every identity', () {
+      final merged = SessionProjection.replay([
+        selected,
+        e(2, const TargetRelinked(target: _t1, from: 'k1', to: 'k2')),
+        e(3, const TargetRelinked(target: _t1, from: 'k1', to: 'k3')),
+      ]).targets[_t1]!;
+      expect(merged.peripheralKey, 'k3');
+      expect(merged.previousKeys, ['k1', 'k2']);
+    });
+
+    test('selecting a known target again keeps its history', () {
+      final again = SessionProjection.replay([
+        selected,
+        e(2, const TargetRelinked(target: _t1, from: 'k1', to: 'k2')),
+        e(
+          3,
+          const TargetSelected(
+            target: _t1,
+            peripheralKey: 'k9',
+            label: 'Phone',
+          ),
+        ),
+      ]).targets[_t1]!;
+      expect(again.peripheralKey, 'k9');
+      expect(again.label, 'Phone');
+      expect(again.previousKeys, ['k1', 'k2']);
+    });
+
+    test('a relink for an unknown target has no label', () {
+      final unknown = SessionProjection.replay([
+        e(1, const TargetRelinked(target: _t1, from: 'k1', to: 'k2')),
+      ]).targets[_t1]!;
+      expect(unknown.label, isNull);
+      expect(unknown.previousKeys, ['k1']);
+    });
+  });
 
   test('an empty log is an empty session', () {
     final empty = SessionProjection.replay(const []);
