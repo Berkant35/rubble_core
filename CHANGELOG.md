@@ -1,4 +1,6 @@
 ## 0.1.0
+- Session projection (`SessionProjection.replay`): idempotent and order-independent; logs from
+  several devices apply in hybrid-clock order.
 - Session events v1 (13 types, sealed) with strict JSON and the `EventEnvelope` (schema 1);
   "no signal" readings are kept as data.
 - Monotonic UUIDv7 ids (`Uuid7Generator`, `Uuid7.parse`) and typed ids (`SessionId`, `EventId`,
