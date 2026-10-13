@@ -345,4 +345,25 @@ void main() {
     ]);
     expect(excluded.lastSurfaceScan, isNull);
   });
+
+  test(
+    'the rubble height and the likely level are kept; the last one counts',
+    () {
+      final state = SessionProjection.replay([
+        e(
+          1,
+          RubbleDepthSet(height: const Meters(9), level: TrappedLevel.middle),
+        ),
+        e(
+          2,
+          RubbleDepthSet(height: const Meters(6), level: TrappedLevel.bottom),
+        ),
+      ]);
+      expect(state.depth, (
+        height: const Meters(6),
+        level: TrappedLevel.bottom,
+      ));
+      expect(SessionState.empty.depth, isNull);
+    },
+  );
 }

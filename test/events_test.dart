@@ -41,6 +41,7 @@ final _events = <SessionEvent>[
   const MeasurementDiscarded(point: _point, reason: DiscardReason.moved),
   GroundTruthRecorded(target: _target, at: p(9, 6)),
   const SessionClosed(),
+  RubbleDepthSet(height: const Meters(6), level: TrappedLevel.bottom),
 ];
 
 EventEnvelope _envelope(SessionEvent event, int seq) => EventEnvelope(
@@ -56,8 +57,8 @@ EventEnvelope _envelope(SessionEvent event, int seq) => EventEnvelope(
 );
 
 void main() {
-  test('all 13 v1 event types are covered', () {
-    expect(_events.map((e) => e.type).toSet(), hasLength(13));
+  test('all 14 v1 event types are covered', () {
+    expect(_events.map((e) => e.type).toSet(), hasLength(14));
   });
 
   for (final (i, event) in _events.indexed) {
@@ -151,6 +152,15 @@ void main() {
         () => ScaleSet(factor: double.infinity, source: ScaleSource.tape),
         throwsArgumentError,
       );
+    });
+
+    test('rubble height must be positive, finite and at most 100 m', () {
+      for (final h in [0.0, -1.0, double.infinity, 101.0]) {
+        expect(
+          () => RubbleDepthSet(height: Meters(h), level: TrappedLevel.unknown),
+          throwsArgumentError,
+        );
+      }
     });
 
     test('readings must be plausible', () {

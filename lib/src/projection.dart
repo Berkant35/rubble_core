@@ -4,6 +4,7 @@ import 'package:rubble_core/src/events.dart';
 import 'package:rubble_core/src/geometry.dart';
 import 'package:rubble_core/src/hybrid_clock.dart';
 import 'package:rubble_core/src/ids.dart';
+import 'package:rubble_core/src/units.dart';
 
 const _deep = DeepCollectionEquality();
 
@@ -100,6 +101,9 @@ final class PointState {
 /// A structure annotation.
 typedef StructureNote = ({StructureKind kind, SitePoint at});
 
+/// The rubble height and where the person most likely was.
+typedef RubbleDepth = ({Meters height, TrappedLevel level});
+
 /// Everything the screens need, rebuilt from the event log.
 @immutable
 final class SessionState {
@@ -117,6 +121,7 @@ final class SessionState {
     required this.closed,
     required this.appliedIds,
     this.lastSurfaceScan,
+    this.depth,
   });
 
   /// A session before any event.
@@ -153,6 +158,9 @@ final class SessionState {
   /// Structure annotations, in order.
   final List<StructureNote> structures;
 
+  /// The rubble height and likely level, once the rescuers gave them.
+  final RubbleDepth? depth;
+
   /// Surface phones never suggested as targets.
   final Set<String> blacklist;
 
@@ -187,6 +195,7 @@ final class SessionState {
     Map<TargetId, SitePoint>? groundTruths,
     bool? closed,
     HybridTimestamp? lastSurfaceScan,
+    RubbleDepth? depth,
     required Set<EventId> appliedIds,
   }) => SessionState(
     title: title ?? this.title,
@@ -200,6 +209,7 @@ final class SessionState {
     groundTruths: Map.unmodifiable(groundTruths ?? this.groundTruths),
     closed: closed ?? this.closed,
     lastSurfaceScan: lastSurfaceScan ?? this.lastSurfaceScan,
+    depth: depth ?? this.depth,
     appliedIds: Set.unmodifiable(appliedIds),
   );
 
@@ -212,6 +222,7 @@ final class SessionState {
       other.scale == scale &&
       other.closed == closed &&
       other.lastSurfaceScan == lastSurfaceScan &&
+      other.depth == depth &&
       _deep.equals(other.structures, structures) &&
       _deep.equals(other.blacklist, blacklist) &&
       _deep.equals(other.targets, targets) &&
@@ -227,6 +238,7 @@ final class SessionState {
     scale,
     closed,
     lastSurfaceScan,
+    depth,
     _deep.hash(points),
     _deep.hash(targets),
     _deep.hash(appliedIds),
@@ -267,6 +279,10 @@ abstract final class SessionProjection {
       ),
       ScaleSet(:final factor) => state._copy(
         scale: factor,
+        appliedIds: applied,
+      ),
+      RubbleDepthSet(:final height, :final level) => state._copy(
+        depth: (height: height, level: level),
         appliedIds: applied,
       ),
       StructureAnnotated(:final kind, :final at) => state._copy(

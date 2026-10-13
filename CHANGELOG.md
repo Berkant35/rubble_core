@@ -1,3 +1,7 @@
+## 0.3.0
+- `RubbleDepthSet` (height of the rubble, `TrappedLevel` where the person most likely was) and
+  `SessionState.depth` — the depth the signal cannot tell, given by the rescuers.
+
 ## 0.2.0
 - `SessionState.lastSurfaceScan`: when the last surface scan finished, even one that set nothing
   aside (a manual exclusion is not a scan).

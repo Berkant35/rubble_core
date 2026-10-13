@@ -45,6 +45,13 @@ sealed class SessionEvent extends _Value {
         ),
         'factor',
       ),
+      'RubbleDepthSet' => _guard(
+        () => RubbleDepthSet(
+          height: Meters(r.number('heightM')),
+          level: r.byName(TrappedLevel.values, 'level'),
+        ),
+        'heightM',
+      ),
       'StructureAnnotated' => StructureAnnotated(
         kind: r.byName(StructureKind.values, 'kind'),
         at: r.point('at'),
@@ -240,6 +247,57 @@ final class StructureAnnotated extends SessionEvent {
 
   @override
   List<Object?> get props => [kind, at];
+}
+
+/// Where in the rubble the person most likely was — the rescuers' judgement (floor plan, witnesses),
+/// never read from the signal (rule 2).
+enum TrappedLevel {
+  /// Upper part of the rubble.
+  upper,
+
+  /// Middle.
+  middle,
+
+  /// Bottom: the ground floor.
+  bottom,
+
+  /// Below ground: a basement.
+  basement,
+
+  /// Not known.
+  unknown,
+}
+
+/// How high the rubble stands and where the person most likely was — the depth the signal cannot tell.
+final class RubbleDepthSet extends SessionEvent {
+  /// Creates the event; [height] must be positive, finite and at most 100 m.
+  RubbleDepthSet({required this.height, required this.level}) {
+    if (!(height.value > 0 && height.value <= 100)) {
+      throw ArgumentError.value(
+        height.value,
+        'height',
+        'must be in (0, 100] m',
+      );
+    }
+  }
+
+  /// Height of the rubble above the ground.
+  final Meters height;
+
+  /// Where the person most likely was.
+  final TrappedLevel level;
+
+  @override
+  String get type => 'RubbleDepthSet';
+
+  @override
+  Map<String, Object?> payloadJson() => {
+    'heightM': height.value,
+    'level': level.name,
+  };
+
+  @override
+  List<Object?> get props => [height, level];
 }
 
 /// The ambient scan listed surface phones, which are never suggested as targets.
